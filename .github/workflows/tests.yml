@@ -95,24 +95,8 @@ jobs:
           echo "=== Поиск всех ZIP файлов (трейсы) ==="
           find target -name "*.zip" -type f 2>/dev/null | head -10 || echo "No zip files found"
 
-      # 11. Генерация PDF отчета (только при успешных тестах)
-      - name: Generate PDF report
-        if: success()  # Только если все тесты прошли
-        run: |
-          echo "Generating PDF report..."
-          java -cp target/classes PdfReporter
-          echo "PDF file info:"
-          ls -lh report.pdf 2>/dev/null || echo "PDF not generated"
 
-      # 12. Загрузка PDF отчета как артефакта
-      - name: Upload PDF report
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pdf-report
-          path: report.pdf
-
-      # 13. Установка Allure CLI для генерации отчетов
+      # 12. Установка Allure CLI для генерации отчетов
       - name: Install Allure CLI
         if: always()  # Устанавливать всегда
         run: |
@@ -122,7 +106,7 @@ jobs:
           sudo ln -sf /opt/allure-2.24.0/bin/allure /usr/local/bin/allure
           allure --version
 
-      # 14. Генерация красивого HTML отчета Allure
+      # 13. Генерация красивого HTML отчета Allure
       - name: Generate Allure Report
         if: always()
         run: |
@@ -131,7 +115,7 @@ jobs:
           echo "Allure report generated"
           du -sh allure-report/
 
-      # 15. Загрузка Allure отчета как артефакта
+      # 14. Загрузка Allure отчета как артефакта
       - name: Upload Allure Report
         if: always()
         uses: actions/upload-artifact@v4
@@ -139,7 +123,7 @@ jobs:
           name: allure-report
           path: allure-report/
 
-      # 16. Загрузка трейсов ТОЛЬКО для упавших тестов (основной артефакт)
+      # 15. Загрузка трейсов ТОЛЬКО для упавших тестов (основной артефакт)
       - name: Upload failed test traces
         if: always()
         uses: actions/upload-artifact@v4
@@ -148,7 +132,7 @@ jobs:
           path: target/traces-failed-only/
           if-no-files-found: ignore  # Не вызывать ошибку если папка пустая
 
-      # 17. Загрузка ВСЕХ трейсов (для отладки и локального тестирования)
+      # 16. Загрузка ВСЕХ трейсов (для отладки и локального тестирования)
       - name: Upload all traces (debug)
         if: always()
         uses: actions/upload-artifact@v4
@@ -157,7 +141,7 @@ jobs:
           path: target/traces-all/
           if-no-files-found: ignore
 
-      # 18. Загрузка сырых результатов тестов (JUnit формата)
+      # 17. Загрузка сырых результатов тестов (JUnit формата)
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -165,7 +149,7 @@ jobs:
           name: test-results
           path: target/surefire-reports/
 
-      # 19. Очистка старых трейсов чтобы не копить мусор
+      # 18. Очистка старых трейсов чтобы не копить мусор
       - name: Clean old traces
         if: always()
         run: |
@@ -175,7 +159,7 @@ jobs:
           find target/traces-all -name "*.zip" -mtime +7 -delete 2>/dev/null || true
           echo "Cleanup completed"
 
-      # 20. Итоговая информация о выполнении тестов
+      # 19. Итоговая информация о выполнении тестов
       - name: Test summary
         if: always()
         run: |
