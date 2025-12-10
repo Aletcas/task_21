@@ -12,9 +12,8 @@ public class TestContext {
     public TestContext() {
         this.playwright = Playwright.create();
 
-        // Для CI/CD лучше использовать headless режим
         BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
-                .setHeadless(true); // или true для CI
+                .setHeadless(true);
 
         this.browser = playwright.chromium().launch(launchOptions);
         this.context = browser.newContext();

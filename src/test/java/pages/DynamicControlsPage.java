@@ -19,7 +19,6 @@ public class DynamicControlsPage {
     public void clickRemoveButton() {
         removeButton.click();
 
-        // Ждем исчезновения чекбокса (максимум 15 секунд)
         checkbox.waitFor(new Locator.WaitForOptions()
                 .setState(WaitForSelectorState.HIDDEN)
                 .setTimeout(15000));
@@ -27,7 +26,6 @@ public class DynamicControlsPage {
 
     public boolean isCheckboxVisible() {
         try {
-            // Проверяем, виден ли чекбокс (ждем до 2 секунд)
             return checkbox.isVisible(new Locator.IsVisibleOptions().setTimeout(10000));
         } catch (TimeoutError e) {
             return false;

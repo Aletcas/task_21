@@ -21,7 +21,7 @@ public class DynamicControlsTest implements Traceable {
                 assertTrue(page.isCheckboxVisible());
                 page.clickRemoveButton();
                 assertFalse(page.isCheckboxVisible(),
-                        "Чекбокс должен исчезнуть после нажатия кнопки Remove");
+                        "Чекбокс не исчез после нажатия кнопки Remove");
             });
 
         } finally {

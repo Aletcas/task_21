@@ -49,7 +49,6 @@ public interface Traceable {
 
     private void saveTraceWithStrategy(BrowserContext context, String testName, boolean failed) {
         try {
-            // Создаем директорию если нет
             Path tracesDir = Paths.get(TRACES_DIR);
             Files.createDirectories(tracesDir);
 
