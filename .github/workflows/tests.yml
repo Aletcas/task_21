@@ -63,7 +63,7 @@ jobs:
           echo "GITHUB_ACTIONS: $GITHUB_ACTIONS"
           
           # Запускаем ВСЕ тесты проекта
-          mvn clean test -Dheadless=true -B -DfailIfNoTests=false
+          mvn clean test allure:test -Dheadless=true -B -DfailIfNoTests=false
           
           # Сохраняем код возврата для использования в следующих шагах
           TESTS_EXIT_CODE=$?
