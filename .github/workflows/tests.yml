@@ -80,25 +80,42 @@ jobs:
           echo "--- Поиск javaagent в конфигурации ---"
           mvn help:effective-pom | grep -i "javaagent\|argLine" | head -10 || echo "Не найдено"
 
+
       # 9. ЗАПУСК ВСЕХ ТЕСТОВ с поддержкой Allure
       - name: Run all tests with Allure
         id: run_tests
         run: |
           echo "Starting all tests in CI environment..."
-          echo "CI detected: $CI"
-          echo "GITHUB_ACTIONS: $GITHUB_ACTIONS"
-          
-          # Явно указываем javaagent для Allure
-          mvn clean test \
-            -DargLine="-javaagent:/home/runner/.m2/repository/org/aspectj/aspectjweaver/1.9.20.1/aspectjweaver-1.9.20.1.jar" \
-            -Dheadless=true \
-            -B \
-            -DfailIfNoTests=false
-          
-          # Сохраняем код возврата для использования в следующих шагах
+
+          # Шаг 1: Проверяем наличие aspectjweaver
+          echo "=== Поиск aspectjweaver ==="
+          ASPECTJ_PATH=$(find ~/.m2/repository -name "aspectjweaver*.jar" 2>/dev/null | head -1)
+
+          if [ -z "$ASPECTJ_PATH" ]; then
+            echo "AspectJ weaver не найден, скачиваем..."
+            mvn dependency:get -Dartifact=org.aspectj:aspectjweaver:1.9.20.1
+            ASPECTJ_PATH=$(find ~/.m2/repository -name "aspectjweaver*.jar" 2>/dev/null | head -1)
+          fi
+
+          echo "Используем путь: $ASPECTJ_PATH"
+
+          if [ -f "$ASPECTJ_PATH" ]; then
+            # Запускаем с javaagent
+            echo "Запуск тестов с Allure support..."
+            mvn clean test \
+              -DargLine="-javaagent:$ASPECTJ_PATH -Dallure.results.directory=target/allure-results" \
+              -Dheadless=true \
+              -B \
+              -DfailIfNoTests=false
+          else
+            # Запускаем без javaagent
+            echo "WARNING: Запуск тестов БЕЗ Allure support"
+            mvn clean test -Dheadless=true -B -DfailIfNoTests=false
+          fi
+
           TESTS_EXIT_CODE=$?
-          echo "Tests completed with exit code: $TESTS_EXIT_CODE"
           echo "exit_code=$TESTS_EXIT_CODE" >> $GITHUB_OUTPUT
+
         env:
           CI: true
           ALLURE_RESULTS_DIR: target/allure-results
