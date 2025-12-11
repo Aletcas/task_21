@@ -13,15 +13,16 @@ jobs:
       - name: Clean Maven cache
         run: mvn dependency:purge-local-repository
 
-      # 3. Кэширование Maven зависимостей (экономит время на следующих запусках)
+      # 3. Кэширование Maven зависимостей
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
-          path: ~/.m2/repository  # Стандартная директория Maven
-          key: maven-${{ hashFiles('pom.xml') }}  # Ключ зависит от pom.xml
+          path: ~/.m2/repository
+          key: maven-${{ hashFiles('pom.xml') }}
           restore-keys: |
-            maven-  # Резервный ключ если точный не найден
-      # 4. Кэширование браузеров Playwright (браузеры весят 100+ МБ)
+            maven-
+
+      # 4. Кэширование браузеров Playwright
       - name: Cache Playwright browsers
         uses: actions/cache@v3
         with:
@@ -29,14 +30,15 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             playwright-${{ runner.os }}-
-      # 5. Установка Java 17 (версия для запуска тестов)
+
+      # 5. Установка Java 17
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin  # Дистрибутив OpenJDK
+          distribution: temurin
           java-version: '17'
 
-      # 6. Сборка зависимостей проекта (без запуска тестов)
+      # 6. Сборка зависимостей проекта
       - name: Resolve dependencies
         run: mvn install -DskipTests
 
@@ -44,71 +46,74 @@ jobs:
       - name: Install Playwright browsers
         run: mvn exec:java -Dexec.mainClass="com.microsoft.playwright.CLI" -Dexec.args="install chromium"
 
-      # 8. Проверка тестовых файлов перед запуском (отладка)
+      # 8. Проверка тестовых файлов
       - name: Check test files
         run: |
-          echo "=== Доступные тесты ==="
+          echo "=== Проверка тестовых файлов ==="
+          TEST_COUNT=$(find src/test -name "*Test.java" -type f | wc -l)
+          if [ "$TEST_COUNT" -eq 0 ]; then
+            echo "ERROR: No test files found in src/test!"
+            exit 1
+          fi
+          echo "Found $TEST_COUNT test files:"
           find src/test -name "*Test.java" -type f | head -10
           echo "=== Структура проекта ==="
           ls -la
-      # 9. ЗАПУСК ВСЕХ ТЕСТОВ с поддержкой Allure
-      - name: Run all tests with Allure
-        id: run_tests  # ID для получения результата позже
+
+      # 9. ЗАПУСК ТЕСТОВ с Allure
+      - name: Run tests with Allure
+        id: run_tests
         run: |
-          echo "Starting all tests in CI environment..."
-          echo "CI detected: $CI"
+          echo "Starting tests in CI environment..."
           echo "GITHUB_ACTIONS: $GITHUB_ACTIONS"
           
-          # Запускаем ВСЕ тесты проекта
-          mvn clean test -Dheadless=true -B -DfailIfNoTests=false
+          # Запускаем тесты с генерацией Allure отчетов
+          mvn clean verify -Dheadless=true -B -DskipTests=false
           
-          # Сохраняем код возврата для использования в следующих шагах
           TESTS_EXIT_CODE=$?
           echo "Tests completed with exit code: $TESTS_EXIT_CODE"
           echo "exit_code=$TESTS_EXIT_CODE" >> $GITHUB_OUTPUT
         env:
-          CI: true  # Явно указываем CI окружение для Traceable интерфейса
-          ALLURE_RESULTS_DIR: target/allure-results  # Директория для Allure
-          TRACE_ONLY_FAILED: true  # Флаг для сохранения только упавших тестов
+          CI: true
+          ALLURE_RESULTS_DIR: target/allure-results
+          TRACE_ONLY_FAILED: true
 
-      # 10. Проверка созданных файлов (отладка при проблемах)
+      # 10. Проверка созданных файлов
       - name: Check generated files
-        if: always()  # Выполнять даже если тесты упали
+        if: always()
         run: |
           echo "=== Проверка результатов тестов ==="
           echo "Surefire reports:"
           find target/surefire-reports -name "*.txt" -type f 2>/dev/null | head -5 || echo "No surefire reports"
           
           echo "=== Проверка трейсов ==="
-          echo "All traces directory:"
-          ls -la target/traces-all/ 2>/dev/null || echo "No traces-all directory"
-          
-          echo "Failed-only traces directory:"
-          ls -la target/traces-failed-only/ 2>/dev/null || echo "No traces-failed-only directory"
+          find target -name "*.zip" -type f 2>/dev/null | head -10 || echo "No trace files found"
           
           echo "=== Проверка Allure результатов ==="
-          ls -la target/allure-results/ 2>/dev/null || echo "No allure results"
-          
-          echo "=== Поиск всех ZIP файлов (трейсы) ==="
-          find target -name "*.zip" -type f 2>/dev/null | head -10 || echo "No zip files found"
-      # 12. Установка Allure CLI для генерации отчетов
+          ALLURE_RESULTS_COUNT=$(find target/allure-results -name "*.json" -type f 2>/dev/null | wc -l || echo "0")
+          echo "Allure result files: $ALLURE_RESULTS_COUNT"
+          ls -la target/allure-results/ 2>/dev/null || echo "No allure results directory"
+
+      # 11. Установка Allure CLI
       - name: Install Allure CLI
-        if: always()  # Устанавливать всегда
+        if: always()
         run: |
-          echo "Installing Allure CLI..."
+          echo "Installing Allure CLI v2.24.0..."
           sudo wget -q -O /tmp/allure.tgz https://github.com/allure-framework/allure2/releases/download/2.24.0/allure-2.24.0.tgz
           sudo tar -xzf /tmp/allure.tgz -C /opt/
           sudo ln -sf /opt/allure-2.24.0/bin/allure /usr/local/bin/allure
           allure --version
-      # 13. Генерация красивого HTML отчета Allure
+
+      # 12. Генерация HTML отчета Allure
       - name: Generate Allure Report
         if: always()
         run: |
           echo "Generating Allure report..."
           allure generate target/allure-results -o allure-report --clean
-          echo "Allure report generated"
+          echo "Allure report size:"
           du -sh allure-report/
-      # 14. Загрузка Allure отчета как артефакта
+
+      # 13. Загрузка Allure отчета как артефакта
       - name: Upload Allure Report
         if: always()
         uses: actions/upload-artifact@v4
@@ -116,16 +121,16 @@ jobs:
           name: allure-report
           path: allure-report/
 
-      # 15. Загрузка трейсов ТОЛЬКО для упавших тестов (основной артефакт)
+      # 14. Загрузка трейсов для упавших тестов
       - name: Upload failed test traces
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-traces-failed
           path: target/traces-failed-only/
-          if-no-files-found: ignore  # Не вызывать ошибку если папка пустая
+          if-no-files-found: ignore
 
-      # 16. Загрузка ВСЕХ трейсов (для отладки и локального тестирования)
+      # 15. Загрузка всех трейсов (для отладки)
       - name: Upload all traces (debug)
         if: always()
         uses: actions/upload-artifact@v4
@@ -134,7 +139,7 @@ jobs:
           path: target/traces-all/
           if-no-files-found: ignore
 
-      # 17. Загрузка сырых результатов тестов (JUnit формата)
+      # 16. Загрузка сырых результатов тестов
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -142,16 +147,7 @@ jobs:
           name: test-results
           path: target/surefire-reports/
 
-      # 18. Очистка старых трейсов чтобы не копить мусор
-      - name: Clean old traces
-        if: always()
-        run: |
-          echo "Cleaning trace directories..."
-          # Удаляем трейсы старше 7 дней (опционально)
-          find target/traces-failed-only -name "*.zip" -mtime +7 -delete 2>/dev/null || true
-          find target/traces-all -name "*.zip" -mtime +7 -delete 2>/dev/null || true
-          echo "Cleanup completed"
-      # 19. Итоговая информация о выполнении тестов
+      # 17. Итоговая информация
       - name: Test summary
         if: always()
         run: |
@@ -167,16 +163,18 @@ jobs:
           FAILED_TRACES=$(find target/traces-failed-only -name "*.zip" -type f 2>/dev/null | wc -l || echo "0")
           echo "Traces saved for failed tests: $FAILED_TRACES"
           
-          # Предупреждение если трейсы не создались при падении тестов
+          # Предупреждение если трейсы не создались
           if [ "$FAILED_TESTS" -gt 0 ] && [ "$FAILED_TRACES" -eq 0 ]; then
-            echo "WARNING: Tests failed but no traces were saved!"
-            echo "Check Traceable implementation in your test classes."
+            echo "::warning::Tests failed but no traces were saved! Check Traceable implementation."
           fi
           
-          echo "=== Артефакты доступны для скачивания ==="
+          # Если тесты упали, но не критично для workflow
+          if [ "${{ steps.run_tests.outputs.exit_code }}" -ne 0 ]; then
+            echo "::warning::Some tests failed. Check artifacts for details."
+          fi
+          
+          echo "=== Доступные артефакты ==="
           echo "1. allure-report - HTML отчет Allure"
-          echo "2. pdf-report - PDF отчет (только при успехе)"
-          echo "3. playwright-traces-failed - трейсы упавших тестов"
-          echo "4. playwright-traces-all - все трейсы (отладка)"
-          echo "5. test-results - сырые результаты тестов"
-
+          echo "2. playwright-traces-failed - трейсы упавших тестов"
+          echo "3. playwright-traces-all - все трейсы"
+          echo "4. test-results - сырые результаты тестов"

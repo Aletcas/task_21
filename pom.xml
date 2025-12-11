@@ -14,9 +14,10 @@
         <assertj.version>3.24.2</assertj.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
-        <allure.version>2.24.0</allure.version>
+        <allure.version>2.24.0</allure.version> <!-- Эта версия верна для allure-junit5 -->
         <maven.surefire.version>3.1.2</maven.surefire.version>
         <aspectj.version>1.9.20.1</aspectj.version>
+        <allure.maven.version>2.12.0</allure.maven.version> <!-- ИСПРАВЛЕНО: версия для плагина -->
     </properties>
 
     <dependencies>
@@ -125,7 +126,7 @@
                 </configuration>
             </plugin>
 
-            <!-- Surefire Plugin для запуска тестов + Allure -->
+            <!-- Surefire Plugin для запуска тестов -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -136,13 +137,7 @@
                         -Dfile.encoding=UTF-8
                     </argLine>
 
-                    <!-- ДОБАВЛЕНО: Allure listener -->
-                    <properties>
-                        <property>
-                            <name>listener</name>
-                            <value>io.qameta.allure.junit5.AllureJunit5</value>
-                        </property>
-                    </properties>
+                    <!-- УДАЛЕН дублирующийся listener - allure-junit5 регистрирует его автоматически -->
 
                     <systemPropertyVariables>
                         <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
@@ -159,13 +154,12 @@
             <plugin>
                 <groupId>io.qameta.allure</groupId>
                 <artifactId>allure-maven</artifactId>
-                <version>2.12.0</version>
+                <version>${allure.maven.version}</version>
                 <configuration>
-                    <reportVersion>2.24.0</reportVersion>
+                    <reportVersion>${allure.version}</reportVersion>
                     <resultsDirectory>${project.build.directory}/allure-results</resultsDirectory>
                     <reportDirectory>${project.build.directory}/allure-report</reportDirectory>
                 </configuration>
-                <!-- ДОБАВЛЕНО: Привязка к фазе verify -->
                 <executions>
                     <execution>
                         <phase>verify</phase>
